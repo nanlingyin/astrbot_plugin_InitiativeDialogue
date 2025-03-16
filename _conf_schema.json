@@ -26,6 +26,12 @@
                 "type": "int",
                 "hint": "每天几点停止发送主动消息，24小时制，默认23点",
                 "default": 23
+            },
+            "max_consecutive_messages": {
+                "description": "最大连续主动消息数",
+                "type": "int",
+                "hint": "无回复情况下最多连续发送多少条主动消息，默认3条",
+                "default": 3
             }
         }
     },

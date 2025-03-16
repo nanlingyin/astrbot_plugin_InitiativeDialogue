@@ -181,11 +181,24 @@ class InitiativeDialogue(Star):
                     except Exception as e:
                         logger.error(f"获取人格信息时出错: {str(e)}")
             
+            # 获取连续发送计数（如果存在）
+            consecutive_count = 1  # 默认为首次发送
+            if 'consecutive_count' in conversation.__dict__:
+                consecutive_count = conversation.consecutive_count + 1
+            
+            # 设置最大连续发送次数（防止无限发送）
+            max_consecutive_messages = 3
+            
             # 随机选择一个prompt
             base_prompt = random.choice(self.prompts)
             
-            # 根据当前人格调整prompt
-            adjusted_prompt = f"{base_prompt}，请保持与你的人格设定一致的风格"
+            # 根据连续发送次数调整prompt
+            adjusted_prompt = base_prompt
+            if consecutive_count > 1:
+                # 如果这是连续的第N次发送，调整提示词
+                adjusted_prompt = f"假设这是你第{consecutive_count}次主动联系用户，但用户仍然没有回复你。{base_prompt}，请表达出你的耐心等待和真诚期待，但不要表现得过于急切或打扰用户。"
+            else:
+                adjusted_prompt = f"{base_prompt}，请保持与你的人格设定一致的风格"
             
             # 获取LLM工具管理器
             func_tools_mgr = self.context.get_llm_tool_manager()
@@ -211,7 +224,21 @@ class InitiativeDialogue(Star):
                 await self.context.send_message(unified_msg_origin, message_chain)
                 
                 # 记录日志
-                logger.info(f"已向用户 {user_id} 发送主动消息: {message_text}")
+                logger.info(f"已向用户 {user_id} 发送第 {consecutive_count} 条连续主动消息: {message_text}")
+                
+                # 如果未超过最大连续发送次数，将用户重新加入记录以继续监控
+                if consecutive_count < max_consecutive_messages:
+                    current_time = datetime.datetime.now()
+                    # 将用户重新添加到记录中，以重新开始计时
+                    self.user_records[user_id] = {
+                        'conversation_id': conversation_id,
+                        'timestamp': current_time,
+                        'unified_msg_origin': unified_msg_origin,
+                        'consecutive_count': consecutive_count  # 记录已经连续发送的次数
+                    }
+                    logger.info(f"用户 {user_id} 未回复，已重新加入监控记录，当前连续发送次数: {consecutive_count}")
+                else:
+                    logger.info(f"用户 {user_id} 已达到最大连续发送次数({max_consecutive_messages})，停止连续发送")
                 
         except Exception as e:
             logger.error(f"发送主动消息时发生错误: {str(e)}")
