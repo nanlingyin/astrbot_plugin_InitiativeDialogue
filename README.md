@@ -1,3 +1,11 @@
+
+</div>
+
+<div align="center">
+
+![:name](https://count.getloli.com/@Jason.Joestar-NIUNIU?name=Jason.Joestar-NIUNIU&theme=asoul&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto)
+
+</div>
 # 插件介绍
  
 astrbot_plugin_InitiativeDialogue是一款能让bot主动发起对话的插件
