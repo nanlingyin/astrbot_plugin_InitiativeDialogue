@@ -1,13 +1,13 @@
 # Description: 一个主动对话插件，当用户长时间不回复时主动发送消息
 from astrbot.api.all import *
-from astrbot.api.event import filter  # 明确导入filter对象
+from astrbot.api.event import filter  # 明确导入对象
 import datetime
 import random
 import asyncio
 import json
 import time
 
-@register("initiative_dialogue", "主动对话", "当用户长时间不回复时主动发送消息", "1.0.0")
+@register("initiative_dialogue", "Jason","主动对话, 当用户长时间不回复时主动发送消息", "1.0.0")
 class InitiativeDialogue(Star):
     def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
