@@ -3,6 +3,12 @@
         "description": "主动对话的时间设置",
         "type": "object",
         "items": {
+            "time_limit_enabled": {
+                "description": "是否启用时间段限制",
+                "type": "bool",
+                "hint": "启用后只在指定的开始时间和结束时间之间发送主动消息",
+                "default": true
+            },
             "inactive_time_seconds": {
                 "description": "触发主动对话的不活跃时间(秒)",
                 "type": "int",
@@ -51,5 +57,23 @@
             "假设用户长时间未与你进行对话，你十分渴望与用户交谈。请以友好的语气，用简短的一句话询问用户最近是不是很忙，表达你很想念与用户的聊天",
             "假设用户长时间未与你进行对话，你十分渴望与用户交谈。请以亲切的语气，用简短的一句话表达你希望用户能与你分享近况，续上之前的对话"
         ]
+    },
+    "whitelist": {
+        "description": "主动对话白名单配置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "是否启用白名单",
+                "type": "bool",
+                "hint": "启用后只有白名单内的用户会触发主动对话",
+                "default": false
+            },
+            "user_ids": {
+                "description": "白名单用户ID列表",
+                "type": "list",
+                "hint": "允许触发主动对话的用户ID列表",
+                "default": []
+            }
+        }
     }
 }
