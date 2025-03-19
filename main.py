@@ -18,6 +18,9 @@ class InitiativeDialogue(Star):
         # 跟踪最近收到过主动消息的用户，用于检测用户回复
         self.users_received_initiative = set()
         
+        # 存储用户最后一次对话的信息（包括达到最大对话次数的用户）
+        self.last_initiative_messages = {}
+        
         # 加载配置
         self.config = config or {}
         self.time_settings = self.config.get('time_settings', {})
@@ -143,6 +146,36 @@ class InitiativeDialogue(Star):
                 # 从集合中移除用户，避免重复处理
                 self.users_received_initiative.remove(user_id)
                 logger.info(f"[钩子日志] 已从回复检测集合中移除用户 {user_id}")
+                
+                # 检查是否有该用户过去私聊的记录
+                found_private_chat = False
+                
+                # 查询历史监控记录
+                for u_id, record in list(self.user_records.items()):
+                    if u_id == user_id:
+                        # 用户当前在监控列表中，需要重置其连续发送计数
+                        logger.info(f"[钩子日志] 用户 {user_id} 已在监控列表中，重置连续发送计数为0")
+                        record['consecutive_count'] = 0  # 重要修改：重置连续计数为0
+                        record['timestamp'] = datetime.datetime.now()  # 更新时间戳
+                        found_private_chat = True
+                        break
+                
+                # 如果没有当前记录，尝试从存储的最后消息记录中恢复
+                if not found_private_chat and user_id in self.last_initiative_messages:
+                    last_msg_info = self.last_initiative_messages[user_id]
+                    logger.info(f"[钩子日志] 从历史主动消息记录中找到用户 {user_id} 的私聊信息，重新加入监控")
+                    current_time = datetime.datetime.now()
+                    self.user_records[user_id] = {
+                        'conversation_id': last_msg_info['conversation_id'],
+                        'timestamp': current_time,
+                        'unified_msg_origin': last_msg_info['unified_msg_origin'],
+                        'consecutive_count': 0  # 重置连续计数，因为用户已回复
+                    }
+                    found_private_chat = True
+                
+                if not found_private_chat:
+                    logger.warning(f"[钩子日志] 用户 {user_id} 没有找到历史私聊记录，无法重新加入监控")
+                    
         except Exception as e:
             logger.error(f"[钩子错误] 处理用户回复主动消息时出错: {str(e)}")
     
@@ -333,6 +366,13 @@ class InitiativeDialogue(Star):
                 self.users_received_initiative.add(user_id)
                 logger.info(f"用户 {user_id} 已添加到主动消息回复检测中，当前集合大小: {len(self.users_received_initiative)}")
                 
+                # 保存最后一次主动消息的信息，无论用户是否达到最大连续发送次数
+                self.last_initiative_messages[user_id] = {
+                    'conversation_id': conversation_id,
+                    'unified_msg_origin': unified_msg_origin,
+                    'timestamp': datetime.datetime.now()
+                }
+                
                 # 如果未超过最大连续发送次数，将用户重新加入记录以继续监控
                 if consecutive_count < max_consecutive_messages:
                     current_time = datetime.datetime.now()
@@ -346,6 +386,7 @@ class InitiativeDialogue(Star):
                     logger.info(f"用户 {user_id} 未回复，已重新加入监控记录，当前连续发送次数: {consecutive_count}")
                 else:
                     logger.info(f"用户 {user_id} 已达到最大连续发送次数({max_consecutive_messages})，停止连续发送")
+                    # 从监控列表中移除用户，但信息已保存在last_initiative_messages中
             else:
                 logger.error(f"生成消息失败，LLM响应角色错误: {llm_response.role}")
                 
