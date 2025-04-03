@@ -88,7 +88,9 @@ class InitiativeDialogue(Star):
         try:
             user_id = str(event.get_sender_id())
             # 委托给核心模块处理请求修改
-            self.dialogue_core.modify_llm_request_for_initiative_response(user_id, event, req)
+            self.dialogue_core.modify_llm_request_for_initiative_response(
+                user_id, event, req
+            )
 
         except Exception as e:
             logger.error(f"[钩子错误] 处理用户回复主动消息时出错: {str(e)}")
@@ -118,26 +120,25 @@ class InitiativeDialogue(Star):
         if not event.is_admin():
             yield event.plain_result("只有管理员可以使用此命令")
             return
-            
+
         user_id = str(event.get_sender_id())
-        conversation_id =  await self.context.conversation_manager.get_curr_conversation_id(event.unified_msg_origin)
+        conversation_id = (
+            await self.context.conversation_manager.get_curr_conversation_id(
+                event.unified_msg_origin
+            )
+        )
         unified_msg_origin = event.unified_msg_origin
-        
+
         yield event.plain_result("正在生成测试消息...")
-        
+
         prompts = self.dialogue_core.initiative_prompts
         time_period = "测试"
-        
-        test_message = await self.dialogue_core.message_manager.generate_and_send_message(
-            user_id = user_id,
+
+        yield await self.dialogue_core.message_manager.generate_and_send_message(
+            user_id=user_id,
             conversation_id=conversation_id,
             unified_msg_origin=unified_msg_origin,
             prompts=prompts,
             message_type="早上",
-            time_period=time_period
+            time_period=time_period,
         )
-        
-        if test_message:
-            yield event.plain_result(f"测试消息生成成功:\n\n{test_message}")
-        else:
-            yield event.plain_result("测试消息生成失败")

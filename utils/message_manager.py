@@ -3,10 +3,17 @@
 import json
 import random
 import logging
-from typing import List, Dict, Any, Optional
-from astrbot.api.all import AstrBotMessage, MessageType, MessageMember, MessageChain, MessageEventResult
+from typing import List, Dict, Any, Optional, AsyncGenerator
+from astrbot.api.all import (
+    AstrBotMessage,
+    MessageType,
+    MessageMember,
+    MessageChain,
+    MessageEventResult,
+)
 from astrbot.api.event import MessageChain
 from astrbot.api.message_components import Plain
+
 logger = logging.getLogger("message_manager")
 
 
@@ -31,7 +38,7 @@ class MessageManager:
         message_type: str = "一般",
         time_period: Optional[str] = None,
         extra_context: Optional[str] = None,
-    ) -> bool:
+    ):
         """生成并发送消息
 
         Args:
@@ -43,8 +50,6 @@ class MessageManager:
             time_period: 时间段描述（如"早上"、"下午"等）
             extra_context: 额外的上下文信息
 
-        Returns:
-            bool: 发送是否成功
         """
         try:
             # 获取对话对象
@@ -59,12 +64,10 @@ class MessageManager:
                 return False
 
             # 获取对话历史和系统提示
-            context = []
             system_prompt = "你是一个可爱的AI助手，喜欢和用户互动。"
 
             # 获取当前对话的人格设置
             if conversation:
-                context = json.loads(conversation.history)
                 persona_id = conversation.persona_id
 
                 # 获取对话使用的人格设置
@@ -90,56 +93,32 @@ class MessageManager:
             logger.info(f"正在为用户 {user_id} 生成{message_type}消息内容...")
             logger.debug(f"使用的提示词: {adjusted_prompt}")
 
-            llm_response = await self.context.get_using_provider().text_chat(
+            platform = self.context.get_platform("aiocqhttp")
+            fake_event = self.create_fake_event(
+                message_str=adjusted_prompt,
+                bot=platform.bot,
+                umo=unified_msg_origin,
+                sender_id=user_id,
+                conversation=conversation,
+            )
+            platform.commit_event(fake_event)
+            self.parent.dialogue_core.users_received_initiative.add(user_id)
+            return fake_event.request_llm(
                 prompt=adjusted_prompt,
-                session_id=None,
-                contexts=context,
+                func_tool_manager=func_tools_mgr,
                 image_urls=[],
-                func_tool=func_tools_mgr,
                 system_prompt=system_prompt,
             )
 
-            # 获取回复文本
-            if llm_response.role == "assistant":
-                message_text = llm_response.completion_text
-                print(f"unified_msg_origin: {unified_msg_origin}")
-                platform = self.context.get_platform("aiocqhttp")
-                fake_event = self.create_fake_event(
-                    message_str=adjusted_prompt,
-                    bot=platform.bot,
-                    umo=unified_msg_origin,
-                    sender_id=user_id,
-                )
-                
-                
-
-                # 提交事件到平台
-                platform.commit_event(fake_event)
-                
-                fake_event.set_result(MessageEventResult().message(message_text))
-
-
-
-                # 记录日志
-                logger.info(
-                    f"已向用户 {user_id} 发送{message_type}消息: {message_text}"
-                )
-
-                # 将用户添加到已接收主动消息用户集合中，用于检测用户回复
-                self.parent.dialogue_core.users_received_initiative.add(user_id)
-
-                return True
-            else:
-                logger.error(f"生成消息失败，LLM响应角色错误: {llm_response.role}")
-                return False
-
         except Exception as e:
             import traceback
-            error_traceback = traceback.format_exc()
-            logger.error(f"发送{message_type}消息时发生错误: {str(e)}\n{error_traceback}")
-            return False
 
-    
+            error_traceback = traceback.format_exc()
+            logger.error(
+                f"发送{message_type}消息时发生错误: {str(e)}\n{error_traceback}"
+            )
+            return
+
     def create_fake_event(
         self,
         message_str: str,
@@ -149,13 +128,13 @@ class MessageManager:
     ):
         from astrbot.core.platform.platform_metadata import PlatformMetadata
         from .aiocqhttp_message_event import AiocqhttpMessageEvent
-        
+
         abm = AstrBotMessage()
         abm.message_str = message_str
         abm.message = [Plain(message_str)]
         abm.self_id = sender_id
         abm.sender = MessageMember(user_id=sender_id)
-        
+
         if "group" in umo.lower():
             # 群消息
             group_id = umo.split("_")[-1] if "_" in umo else sender_id
@@ -163,32 +142,32 @@ class MessageManager:
                 "message_type": "group",
                 "group_id": int(group_id),
                 "user_id": int(sender_id),
-                "message": message_str
+                "message": message_str,
             }
         else:
             # 私聊消息
             abm.raw_message = {
-                "message_type": "private", 
+                "message_type": "private",
                 "user_id": int(sender_id),
-                "message": message_str
+                "message": message_str,
             }
-        
+
         abm.session_id = umo
         abm.type = MessageType.FRIEND_MESSAGE
-        
+
         meta = PlatformMetadata("aiocqhttp", "fake_adapter")
         event = AiocqhttpMessageEvent(
             message_str=message_str,
             message_obj=abm,
             platform_meta=meta,
             session_id=umo,
-            bot=bot
+            bot=bot,
         )
         event.is_wake = True
         event.call_llm = False
-        
+
         return event
-    
+
     def _get_system_prompt(self, persona_id: Optional[str], default_prompt: str) -> str:
         """获取系统提示词
 
