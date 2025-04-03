@@ -310,7 +310,11 @@ class InitiativeDialogueCore:
             event: 消息事件
         """
         # 获取会话信息
-        conversation_id =  await self.context.conversation_manager.get_curr_conversation_id(event.unified_msg_origin)
+        conversation_id = (
+            await self.context.conversation_manager.get_curr_conversation_id(
+                event.unified_msg_origin
+            )
+        )
         unified_msg_origin = event.unified_msg_origin
 
         # 更新用户记录
@@ -325,7 +329,7 @@ class InitiativeDialogueCore:
         logger.debug(f"已更新用户 {user_id} 的活跃状态，最后活跃时间：{now}")
 
     def modify_llm_request_for_initiative_response(
-        self,event:AstrMessageEvent, user_id: str, req: ProviderRequest
+        self, event: AstrMessageEvent, user_id: str, req: ProviderRequest
     ) -> None:
         """修改LLM请求以适应对主动消息的回复
 

@@ -52,6 +52,7 @@ class MessageManager:
 
         """
         try:
+            _, _, session_id = self.parse_unified_msg_origin(unified_msg_origin)
             # 获取对话对象
             conversation = await self.context.conversation_manager.get_conversation(
                 unified_msg_origin, conversation_id
@@ -99,6 +100,7 @@ class MessageManager:
                 bot=platform.bot,
                 umo=unified_msg_origin,
                 sender_id=user_id,
+                session_id=session_id,
             )
             platform.commit_event(fake_event)
             self.parent.dialogue_core.users_received_initiative.add(user_id)
@@ -119,11 +121,31 @@ class MessageManager:
             )
             return
 
+    def parse_unified_msg_origin(self, unified_msg_origin: str):
+        """解析统一消息来源
+
+        格式: platform_name:message_type:session_id
+        """
+        try:
+            parts = unified_msg_origin.split(":")
+            if len(parts) != 3:
+                raise ValueError("统一消息来源格式错误")
+
+            platform_name = parts[0]
+            message_type = parts[1]
+            session_id = parts[2]
+
+            return platform_name, message_type, session_id
+        except Exception as e:
+            logger.error(f"解析统一消息来源时发生错误: {str(e)}")
+            return None, None, None
+
     def create_fake_event(
         self,
         message_str: str,
         bot,
         umo: str,
+        session_id: str,
         sender_id: str = "123456",
     ):
         from astrbot.core.platform.platform_metadata import PlatformMetadata
@@ -152,7 +174,7 @@ class MessageManager:
                 "message": message_str,
             }
 
-        abm.session_id = umo
+        abm.session_id = session_id
         abm.type = MessageType.FRIEND_MESSAGE
 
         meta = PlatformMetadata("aiocqhttp", "fake_adapter")
@@ -160,7 +182,7 @@ class MessageManager:
             message_str=message_str,
             message_obj=abm,
             platform_meta=meta,
-            session_id=umo,
+            session_id=session_id,
             bot=bot,
         )
         event.is_wake = True

@@ -129,8 +129,6 @@ class InitiativeDialogue(Star):
         )
         unified_msg_origin = event.unified_msg_origin
 
-        yield event.plain_result("正在生成测试消息...")
-
         prompts = self.dialogue_core.initiative_prompts
         time_period = "测试"
 
