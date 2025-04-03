@@ -99,7 +99,6 @@ class MessageManager:
                 bot=platform.bot,
                 umo=unified_msg_origin,
                 sender_id=user_id,
-                conversation=conversation,
             )
             platform.commit_event(fake_event)
             self.parent.dialogue_core.users_received_initiative.add(user_id)
@@ -108,6 +107,7 @@ class MessageManager:
                 func_tool_manager=func_tools_mgr,
                 image_urls=[],
                 system_prompt=system_prompt,
+                conversation=conversation,
             )
 
         except Exception as e:
