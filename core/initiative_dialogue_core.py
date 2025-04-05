@@ -33,59 +33,54 @@ class InitiativeDialogueCore:
 
         # 加载配置
         self.config_manager = ConfigManager(parent.config)
-        core_config = self.config_manager.get_module_config("initiative_dialogue_core")
-
-        # 核心配置参数
-        self.inactive_time_seconds = core_config.get(
-            "inactive_time_seconds", 3600
+        
+        # 从time_settings获取核心配置参数
+        time_settings = self.config_manager.get_module_config("time_settings")
+        self.inactive_time_seconds = time_settings.get(
+            "inactive_time_seconds", 7200
+        )  # 默认2小时
+        self.max_response_delay_seconds = time_settings.get(
+            "max_response_delay_seconds", 3600
         )  # 默认1小时
-        self.max_response_delay_seconds = core_config.get(
-            "max_response_delay_seconds", 300
-        )  # 默认5分钟
-        self.time_limit_enabled = core_config.get("time_limit_enabled", True)
-        self.activity_start_hour = core_config.get("activity_start_hour", 8)
-        self.activity_end_hour = core_config.get("activity_end_hour", 22)
+        self.time_limit_enabled = time_settings.get("time_limit_enabled", True)
+        self.probability_enabled = time_settings.get("probability_enabled", True)  # 是否启用概率发送
+        self.activity_start_hour = time_settings.get("activity_start_hour", 8)
+        self.activity_end_hour = time_settings.get("activity_end_hour", 23)
+        self.max_consecutive_messages = time_settings.get("max_consecutive_messages", 3)
 
-        # 白名单配置
-        whitelist_config = core_config.get("whitelist", {})
+        # 从whitelist获取白名单配置
+        whitelist_config = self.config_manager.get_module_config("whitelist")
         self.whitelist_enabled = whitelist_config.get("enabled", False)
-        self.whitelist_users = set(whitelist_config.get("users", []))
+        self.whitelist_users = set(whitelist_config.get("user_ids", []))
 
-        # 提示词配置
-        self.initiative_prompts = core_config.get(
-            "initiative_prompts",
-            [
-                "请以自然的语气，生成一条简短的主动消息，询问用户最近在做什么",
-                "请以温和的语气，生成一条短小的主动问候，表达想念用户的心情",
-                "请以随意的语气，生成一条简短的日常分享，可以提及你最近的'心情'或'想法'",
-                "请以好奇的语气，生成一条简短的问题，询问用户对某个话题的看法",
-            ],
-        )
+        # 提示词配置 - 根据消息发送次数调整情感
+        self.initiative_prompts = [
+            # 首次发送 - 表达思念和友好
+            "请生成一条简短的消息，表达你因用户长时间未联系而想念对方，想和用户聊天的心情，保持符合你的人设特点",
+            "请生成一条简短的消息，表达你注意到用户很久没有消息，很想和用户聊天的感受，保持符合你的人设特点",
+            "请生成一条简短的消息，表示你发现用户很久没有联系你，表达你想念用户并希望聊天的心情，保持符合你的人设特点",
+            "请生成一条简短的消息，表达因为用户很长时间没给你发消息，你有点想念对方了，想找用户聊聊天，保持符合你的人设特点",
+            
+            # 中间阶段 - 表达轻微失落但仍然友好
+            "请生成一条简短的消息，表达你已经主动联系用户多次但没收到回复，有些失落但仍希望聊天的心情，保持符合你的人设特点",
+            "请生成一条简短的消息，表示你发现用户似乎很忙，对没有回复感到有点失落，但仍然友好地询问用户的近况，保持符合你的人设特点",
+            
+            # 后期阶段 - 表达失望但理解
+            "请生成一条简短的消息，表达你多次联系用户没有得到回应的失望情绪，但表示理解用户可能很忙，保持符合你的人设特点",
+            "请生成一条简短的消息，表达你因多次没有收到用户回复而感到有些失望，但仍然尊重用户的选择，保持符合你的人设特点",
+            
+            # 最终阶段 - 表示不再打扰
+            "请生成一条简短的消息，表示你理解用户可能无暇回复，决定不再频繁打扰，但仍然会在这里等待用户的消息，保持符合你的人设特点",
+            "请生成一条简短的消息，表达你不想过多打扰用户的生活，以后会减少主动联系，但随时欢迎用户的消息，保持符合你的人设特点"
+        ]
 
-        # 回复检测配置
-        self.initiative_response_keywords = core_config.get(
-            "initiative_response_keywords",
-            [
-                "你好",
-                "嗨",
-                "在吗",
-                "打扰",
-                "抱歉",
-                "最近",
-                "怎么样",
-                "好久不见",
-                "想你",
-            ],
-        )
+        # 记录每个用户收到的连续主动消息次数
+        self.consecutive_message_count = {}
 
         # 用户数据
-        self.user_records = (
-            {}
-        )  # user_id -> {"timestamp": datetime, "conversation_id": str, "unified_msg_origin": str}
-        self.last_initiative_messages = (
-            {}
-        )  # user_id -> {"timestamp": datetime, "conversation_id": str, "unified_msg_origin": str}
-        self.users_received_initiative = set()  # 记录已接收过主动消息的用户ID
+        self.user_records = {}
+        self.last_initiative_messages = {}
+        self.users_received_initiative = set()
 
         # 检查任务引用
         self.inactive_check_task = None
@@ -192,65 +187,28 @@ class InitiativeDialogueCore:
                     # 计算不活跃时间（秒）
                     inactive_seconds = (now - last_active).total_seconds()
 
-                    # 如果超过阈值，考虑发送主动消息
+                    # 如果超过阈值，直接发送主动消息
                     if inactive_seconds >= self.inactive_time_seconds:
-                        # 检查是否需要发送主动消息
-                        if await self._should_send_initiative_message(user_id):
-                            # 为用户创建发送主动消息的任务
-                            task_id = f"initiative_{user_id}_{int(now.timestamp())}"
+                        # 为用户创建发送主动消息的任务
+                        task_id = f"initiative_{user_id}_{int(now.timestamp())}"
 
-                            # 计算随机延迟时间，增加自然感
-                            await self.task_manager.schedule_task(
-                                task_id=task_id,
-                                coroutine_func=self._send_initiative_message,
-                                random_delay=True,
-                                min_delay=0,
-                                max_delay=int(self.max_response_delay_seconds / 60),
-                                user_id=user_id,
-                                conversation_id=record["conversation_id"],
-                                unified_msg_origin=record["unified_msg_origin"],
-                            )
+                        # 计算随机延迟时间，增加自然感
+                        await self.task_manager.schedule_task(
+                            task_id=task_id,
+                            coroutine_func=self._send_initiative_message,
+                            random_delay=True,
+                            min_delay=0,
+                            max_delay=int(self.max_response_delay_seconds / 60),
+                            user_id=user_id,
+                            conversation_id=record["conversation_id"],
+                            unified_msg_origin=record["unified_msg_origin"],
+                        )
 
         except asyncio.CancelledError:
             logger.info("不活跃对话检查循环已取消")
             raise
         except Exception as e:
             logger.error(f"检查不活跃对话时发生错误: {str(e)}")
-
-    async def _should_send_initiative_message(self, user_id: str) -> bool:
-        """判断是否应该向指定用户发送主动消息
-
-        Args:
-            user_id: 用户ID
-
-        Returns:
-            bool: 是否应该发送主动消息
-        """
-        # 检查用户最后一次收到主动消息的时间
-        last_message = self.last_initiative_messages.get(user_id)
-
-        if last_message:
-            # 如果最近已经发送过主动消息，检查间隔时间
-            last_time = last_message.get("timestamp")
-            if last_time:
-                # 计算距离上次发送的时间（小时）
-                hours_since_last = (
-                    datetime.datetime.now() - last_time
-                ).total_seconds() / 3600
-
-                # 根据距离上次发送的时间计算发送概率
-                # 时间越长，概率越高：6小时内不发送，6-12小时30%概率，12-24小时60%概率，24小时以上90%概率
-                if hours_since_last < 6:
-                    return False
-                elif hours_since_last < 12:
-                    return random.random() < 0.3
-                elif hours_since_last < 24:
-                    return random.random() < 0.6
-                else:
-                    return random.random() < 0.9
-        else:
-            # 如果是首次发送主动消息，50%概率发送
-            return random.random() < 0.5
 
     async def _send_initiative_message(
         self, user_id: str, conversation_id: str, unified_msg_origin: str
@@ -269,23 +227,77 @@ class InitiativeDialogueCore:
 
         # 获取当前时间段，用于调整消息内容
         current_hour = datetime.datetime.now().hour
-        if 5 <= current_hour < 12:
+        if 6 <= current_hour < 8:
             time_period = "早上"
-        elif 12 <= current_hour < 18:
+        elif 8 <= current_hour < 11:
+            time_period = "上午"
+        elif 11 <= current_hour < 13:
+            time_period = "午饭"
+        elif 13 <= current_hour < 17:
             time_period = "下午"
-        elif 18 <= current_hour < 22:
+        elif 17 <= current_hour < 19:
+            time_period = "晚饭"
+        elif 19 <= current_hour < 23:
             time_period = "晚上"
         else:
             time_period = "深夜"
 
+        # 获取用户连续收到的主动消息数量
+        if user_id not in self.consecutive_message_count:
+            self.consecutive_message_count[user_id] = 0
+        
+        # 增加计数
+        self.consecutive_message_count[user_id] += 1
+        
+        # 确定使用的提示词
+        count = self.consecutive_message_count[user_id]
+        prompt_index = 0
+        
+        if count == 1:
+            # 首次发送 - 随机选择前4个提示词之一
+            prompt_index = random.randint(0, 3)
+        elif count == 2:
+            # 第二次发送 - 使用中间阶段提示词
+            prompt_index = random.randint(4, 5)
+        elif count == self.max_consecutive_messages:
+            # 最后一次发送 - 使用最终阶段提示词
+            prompt_index = random.randint(8, 9)
+        else:
+            # 其他情况 - 使用后期阶段提示词
+            prompt_index = random.randint(6, 7)
+        
+        # 确保索引在有效范围内
+        prompt_index = min(prompt_index, len(self.initiative_prompts) - 1)
+        
+        # 获取最终提示词
+        selected_prompt = self.initiative_prompts[prompt_index]
+        
+        # 添加上下文
+        extra_context = f"现在是{time_period}，这是你第{count}次主动联系用户，你应该根据目前的时间段调整内容，"
+        
+        # 检查今天是否是特殊节日
+        festival_detector = self.parent.festival_detector if hasattr(self.parent, 'festival_detector') else None
+        festival_name = None
+        
+        if festival_detector:
+            festival_name = festival_detector.get_festival_name()
+            
+        # 如果是节日，在上下文中添加节日信息
+        if festival_name:
+            extra_context += f"今天是{festival_name}，可以在对话中自然地融入节日元素。"
+            
+        if count >= self.max_consecutive_messages:
+            extra_context += "这将是最后一次主动联系，表达你将不再打扰的意思。"
+        
         # 使用消息管理器发送主动消息
         success = await self.message_manager.generate_and_send_message(
             user_id=user_id,
             conversation_id=conversation_id,
             unified_msg_origin=unified_msg_origin,
-            prompts=self.initiative_prompts,
+            prompts=[selected_prompt],  # 只使用选定的提示词
             message_type="主动消息",
             time_period=time_period,
+            extra_context=extra_context
         )
 
         if success:
@@ -300,7 +312,11 @@ class InitiativeDialogueCore:
             # 标记用户已接收主动消息
             self.users_received_initiative.add(user_id)
 
-            logger.info(f"已向用户 {user_id} 发送主动消息")
+            logger.info(f"已向用户 {user_id} 发送第{count}次主动消息")
+            
+            # 如果达到最大连续消息数，重置计数
+            if count >= self.max_consecutive_messages:
+                logger.info(f"用户 {user_id} 已达到最大连续消息数 {self.max_consecutive_messages}，将不再发送主动消息")
 
     async def handle_user_message(self, user_id: str, event: AstrMessageEvent) -> None:
         """处理用户消息，更新活跃状态
@@ -324,6 +340,11 @@ class InitiativeDialogueCore:
             "conversation_id": conversation_id,
             "unified_msg_origin": unified_msg_origin,
         }
+
+        # 用户回复了，重置连续消息计数
+        if user_id in self.consecutive_message_count:
+            self.consecutive_message_count[user_id] = 0
+            logger.debug(f"用户 {user_id} 已回复消息，重置连续主动消息计数")
 
         # 记录日志（仅在调试模式下）
         logger.debug(f"已更新用户 {user_id} 的活跃状态，最后活跃时间：{now}")

@@ -31,23 +31,25 @@ class DailyGreetings:
         module_config = self.config_manager.get_module_config("daily_greetings")
 
         # 功能总开关
-        self.enabled = module_config.get("enabled", True)
+        self.enabled = module_config.get("enabled", False)
 
         # 早晨问候配置
-        morning_config = module_config.get("morning", {})
-        self.morning_enabled = morning_config.get("enabled", True)
-        self.morning_start_hour = morning_config.get("start_hour", 6)
-        self.morning_end_hour = morning_config.get("end_hour", 9)
-
+        self.morning_hour = module_config.get("morning_hour", 8)
+        self.morning_minute = module_config.get("morning_minute", 0)
+        self.morning_max_delay = module_config.get("morning_max_delay", 30)
+        
         # 晚安问候配置
-        night_config = module_config.get("night", {})
-        self.night_enabled = night_config.get("enabled", True)
-        self.night_start_hour = night_config.get("start_hour", 22)
-        self.night_end_hour = night_config.get("end_hour", 24)  # 24表示第二天的0点
+        self.night_hour = module_config.get("night_hour", 23)
+        self.night_minute = module_config.get("night_minute", 0)
+        self.night_max_delay = module_config.get("night_max_delay", 30)
 
+        # 记录是否已经触发当天的早晚安任务
+        self.morning_triggered = False
+        self.night_triggered = False
+        
         # 选择用户配置
-        self.user_selection_ratio = module_config.get("user_selection_ratio", 0.4)
-        self.min_selected_users = module_config.get("min_selected_users", 1)
+        self.user_selection_ratio = 0.4
+        self.min_selected_users = 1
 
         # 问候提示词列表
         self.morning_prompts = [
@@ -82,7 +84,9 @@ class DailyGreetings:
         self.task_manager = TaskManager(parent)
 
         logger.info(
-            f"每日问候模块初始化完成，状态：{'启用' if self.enabled else '禁用'}"
+            f"每日问候模块初始化完成，状态：{'启用' if self.enabled else '禁用'}, "
+            f"早安时间: {self.morning_hour}:{self.morning_minute:02d}, "
+            f"晚安时间: {self.night_hour}:{self.night_minute:02d}"
         )
 
     async def start(self):
@@ -113,41 +117,46 @@ class DailyGreetings:
                 now = datetime.datetime.now()
                 current_date = now.date()
                 current_hour = now.hour
+                current_minute = now.minute
 
                 # 如果日期变了，重置状态
                 if current_date != self.last_check_date:
                     logger.info(f"日期已变更为 {current_date}，重置每日问候状态")
                     self.today_morning_users.clear()
                     self.today_night_users.clear()
+                    self.morning_triggered = False
+                    self.night_triggered = False
                     self.last_check_date = current_date
 
-                # 1. 检查是否在早晨问候时间段
-                if (
-                    self.morning_enabled
-                    and self.morning_start_hour <= current_hour < self.morning_end_hour
-                ):
-                    await self._check_greeting_time("morning")
+                # 1. 检查是否到了早晨问候时间
+                if not self.morning_triggered:
+                    # 判断是否达到设定的早安时间
+                    if (current_hour == self.morning_hour and current_minute >= self.morning_minute) or \
+                       (current_hour > self.morning_hour and current_hour < self.morning_hour + 2):
+                        logger.info(f"触发早安问候任务，当前时间: {current_hour}:{current_minute}")
+                        await self._check_greeting_time("morning")
+                        self.morning_triggered = True
 
-                # 2. 检查是否在晚安问候时间段
-                night_end = self.night_end_hour
-                if night_end == 24:
-                    night_end = 0  # 处理跨日的情况
-
-                if self.night_enabled:
-                    if (
-                        self.night_start_hour <= current_hour < 24
-                        or 0 <= current_hour < night_end
-                    ):
+                # 2. 检查是否到了晚安问候时间
+                if not self.night_triggered:
+                    # 判断是否达到设定的晚安时间
+                    if (current_hour == self.night_hour and current_minute >= self.night_minute) or \
+                       (current_hour > self.night_hour) or \
+                       (self.night_hour == 23 and current_hour == 0 and current_minute < self.night_minute):
+                        logger.info(f"触发晚安问候任务，当前时间: {current_hour}:{current_minute}")
                         await self._check_greeting_time("night")
+                        self.night_triggered = True
 
-                # 每分钟检查一次
-                await asyncio.sleep(60)
+                # 每30秒检查一次
+                await asyncio.sleep(30)
 
         except asyncio.CancelledError:
             logger.info("每日问候检查循环已取消")
             raise
         except Exception as e:
             logger.error(f"每日问候检查循环发生错误: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     async def _check_greeting_time(self, greeting_type: str):
         """检查是否需要发送问候消息
@@ -236,6 +245,21 @@ class DailyGreetings:
             time_period = "晚上"
         else:
             time_period = "深夜"
+            
+        # 检查今天是否是特殊节日
+        festival_detector = self.parent.festival_detector if hasattr(self.parent, 'festival_detector') else None
+        festival_name = None
+        
+        if festival_detector:
+            festival_name = festival_detector.get_festival_name()
+            
+        # 如果是节日，调整问候语
+        extra_context = None
+        if festival_name:
+            if greeting_type == "早安":
+                extra_context = f"今天是{festival_name}，请在早安问候中加入节日祝福"
+            elif greeting_type == "晚安":
+                extra_context = f"今天是{festival_name}，请在晚安问候中加入节日祝福"
 
         # 使用消息管理器发送消息
         await self.message_manager.generate_and_send_message(
@@ -245,4 +269,5 @@ class DailyGreetings:
             prompts=prompts,
             message_type=greeting_type,
             time_period=time_period,
+            extra_context=extra_context,
         )
