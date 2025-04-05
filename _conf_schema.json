@@ -136,5 +136,23 @@
                 }
             }
         }
+    },
+    "festival_settings": {
+        "description": "节日检测与问候配置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "是否启用节日检测功能",
+                "type": "bool",
+                "hint": "启用后会在特殊节日发送相关问候和提示",
+                "default": true
+            },
+            "prioritize_festival": {
+                "description": "是否优先使用节日提示词",
+                "type": "bool",
+                "hint": "启用后在节日当天会优先使用节日相关提示词",
+                "default": true
+            }
+        }
     }
 }

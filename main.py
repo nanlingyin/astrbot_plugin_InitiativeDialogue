@@ -10,6 +10,7 @@ from .core.daily_greetings import DailyGreetings
 from .core.initiative_dialogue_core import InitiativeDialogueCore
 from .core.random_daily_activities import RandomDailyActivities
 from .utils.data_loader import DataLoader
+from .utils.festival_detector import FestivalDetector
 
 
 @register(
@@ -24,6 +25,9 @@ class InitiativeDialogue(Star):
         # 基础配置
         self.config = config or {}
 
+        # 打印收到的配置，用于调试
+        logger.info(f"收到的配置内容: {self.config}")
+
         # 设置数据存储路径
         self.data_dir = (
             pathlib.Path(os.path.dirname(os.path.abspath(__file__))) / "data"
@@ -35,6 +39,14 @@ class InitiativeDialogue(Star):
 
         # 初始化核心对话模块
         self.dialogue_core = InitiativeDialogueCore(self, self)
+        
+        # 初始化节日检测器
+        self.festival_detector = FestivalDetector.get_instance(self)
+        
+        # 检查今天是否是节日
+        festival_info = self.festival_detector.get_festival_info()
+        if festival_info:
+            logger.info(f"今天是 {festival_info['name']}！将使用节日相关提示词。")
 
         # 初始化定时问候模块
         self.daily_greetings = DailyGreetings(self)
@@ -140,3 +152,19 @@ class InitiativeDialogue(Star):
             message_type="早上",
             time_period=time_period,
         )
+
+    @filter.command("check_festival")
+    async def check_current_festival(self, event: AstrMessageEvent):
+        """查看当前是否是节日的命令"""
+        if not event.is_admin():
+            yield event.plain_result("只有管理员可以使用此命令")
+            return
+            
+        festival_info = self.festival_detector.get_festival_info()
+        if festival_info:
+            result = f"今天是 {festival_info['name']}！\n"
+            result += f"描述: {festival_info['description']}\n"
+            result += f"节日提示词示例: {festival_info['prompts'][0][:50]}..."
+            yield event.plain_result(result)
+        else:
+            yield event.plain_result("今天不是特殊节日")
