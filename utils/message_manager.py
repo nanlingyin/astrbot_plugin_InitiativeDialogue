@@ -74,12 +74,31 @@ class MessageManager:
                 # 获取对话使用的人格设置
                 system_prompt = self._get_system_prompt(persona_id, system_prompt)
 
+            # 检查今天是否是特殊节日
+            festival_detector = self.parent.festival_detector if hasattr(self.parent, 'festival_detector') else None
+            festival_prompts = None
+            festival_name = None
+            
+            if festival_detector:
+                festival_prompts = festival_detector.get_festival_prompts()
+                festival_name = festival_detector.get_festival_name()
+            
+            # 如果今天是节日且不是特定消息类型，优先使用节日相关提示词
+            if festival_prompts and message_type not in ["主动消息", "早安", "晚安"]:
+                prompts = festival_prompts
+                logger.info(f"今天是{festival_name}，使用节日相关提示词")
+
             # 随机选择一个提示词
             prompt = random.choice(prompts)
 
             # 调整提示词
             adjusted_prompt = prompt
-            if time_period:
+            if festival_name and message_type not in ["主动消息"]:
+                if time_period:
+                    adjusted_prompt = f"{prompt}，今天是{festival_name}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                else:
+                    adjusted_prompt = f"{prompt}，今天是{festival_name}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+            elif time_period:
                 adjusted_prompt = f"{prompt}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
             else:
                 adjusted_prompt = f"{prompt}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
