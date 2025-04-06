@@ -198,6 +198,15 @@ class RandomDailyActivities:
 
             # 遍历用户，根据配置决定是否使用概率发送
             for user_id, record in eligible_users:
+                # 再次检查时间间隔，确保在调度任务时不会有重复
+                last_time = self.last_sharing_time.get(user_id)
+                if last_time:
+                    minutes_since_last = (now - last_time).total_seconds() / 60
+                    if minutes_since_last < self.min_interval_minutes:
+                        # 未达到最小间隔，跳过（双重检查）
+                        logger.debug(f"用户 {user_id} 上次消息发送于 {minutes_since_last:.1f} 分钟前，未达到最小间隔 {self.min_interval_minutes} 分钟，跳过")
+                        continue
+                
                 send_message = True
                 
                 # 如果启用了概率发送，则根据时间间隔计算概率
@@ -224,7 +233,10 @@ class RandomDailyActivities:
                     import random
                     send_message = random.random() <= probability
                 
+                # 更新最后分享时间 - 在决定发送之前就更新时间戳，防止同一循环中多次调度
                 if send_message:
+                    self.last_sharing_time[user_id] = now
+                    
                     # 决定发送，为用户安排10分钟内随机时间发送消息
                     prompts = self.time_period_prompts.get(time_period, [])
                     if not prompts:
@@ -247,9 +259,6 @@ class RandomDailyActivities:
                         prompts=prompts,
                         time_period=time_period,
                     )
-
-                    # 更新最后分享时间
-                    self.last_sharing_time[user_id] = now
 
         except Exception as e:
             logger.error(f"检查日常分享任务时发生错误: {str(e)}")
