@@ -1,4 +1,10 @@
 {
+    "self_id": {
+        "description": "机器人自己的QQ号",
+        "type": "string",
+        "hint": "请填写机器人自己的QQ号，这是必填项",
+        "default": ""
+    },
     "time_settings": {
         "description": "主动对话的时间设置",
         "type": "object",

@@ -63,11 +63,37 @@ class InitiativeDialogue(Star):
             f"已加载配置，不活跃时间阈值: {self.dialogue_core.inactive_time_seconds}秒, "
             f"随机回复窗口: {self.dialogue_core.max_response_delay_seconds}秒, "
             f"时间限制: {'启用' if self.dialogue_core.time_limit_enabled else '禁用'}, "
-            f"活动时间: {self.dialogue_core.activity_start_hour}点-{self.dialogue_core.activity_end_hour}点"
+            f"活动时间: {self.dialogue_core.activity_start_hour}点-{self.dialogue_core.activity_end_hour}点, "
+            f"最大连续消息数: {self.dialogue_core.max_consecutive_messages}条"
         )
+        
+        # 添加白名单信息日志
         logger.info(
             f"白名单功能状态: {'启用' if self.dialogue_core.whitelist_enabled else '禁用'}, "
             f"白名单用户数量: {len(self.dialogue_core.whitelist_users)}"
+        )
+        
+        # 添加日常分享设置日志
+        logger.info(
+            f"随机日常分享状态: {'启用' if self.random_daily.sharing_enabled else '禁用'}, "
+            f"概率发送: {'启用' if self.random_daily.probability_enabled else '禁用'}, "
+            f"最小间隔: {self.random_daily.min_interval_minutes}分钟, "
+            f"最大间隔: {self.random_daily.max_interval_minutes}分钟"
+        )
+        
+        # 添加每日问候设置日志
+        logger.info(
+            f"每日问候状态: {'启用' if self.daily_greetings.enabled else '禁用'}, "
+            f"早安时间: {self.daily_greetings.morning_hour}:{self.daily_greetings.morning_minute:02d}, "
+            f"晚安时间: {self.daily_greetings.night_hour}:{self.daily_greetings.night_minute:02d}"
+        )
+        
+        # 添加节日检测信息
+        festival_config = self.config.get('festival_settings', {})
+        festival_enabled = festival_config.get('enabled', True)
+        logger.info(
+            f"节日检测状态: {'启用' if festival_enabled else '禁用'}, "
+            f"优先使用节日提示词: {'是' if festival_config.get('prioritize_festival', True) else '否'}"
         )
 
         # 启动检查任务
@@ -88,28 +114,51 @@ class InitiativeDialogue(Star):
     async def on_private_message(self, event: AstrMessageEvent):
         """处理私聊消息"""
         user_id = str(event.get_sender_id())
+        message_str = event.message_str
+
+        # 检查消息是否包含系统提示词标记
+        if "[SYS_PROMPT]" in message_str:
+            logger.debug(f"检测到系统提示词消息，跳过计数重置: {message_str[:50]}...")
+            return
+            
         # 委托给核心模块处理
         await self.dialogue_core.handle_user_message(user_id, event)
-
-    @filter.on_llm_request()
-    async def check_initiative_response(self, event, req: ProviderRequest):
-        """检查是否是对主动消息的回复，并修改提示词"""
-        if event is None:
-            return
-
-        try:
-            user_id = str(event.get_sender_id())
-            # 委托给核心模块处理请求修改
-            self.dialogue_core.modify_llm_request_for_initiative_response(
-                user_id, event, req
-            )
-
-        except Exception as e:
-            logger.error(f"[钩子错误] 处理用户回复主动消息时出错: {str(e)}")
+        
+        # 调试日志，查看当前计数
+        current_count = self.dialogue_core.consecutive_message_count.get(user_id, 0)
+        logger.debug(f"用户 {user_id} 当前计数为 {current_count}")
+        
+        # 如果用户曾收到过主动消息，这里直接处理重置计数逻辑
+        if user_id in self.dialogue_core.users_received_initiative:
+            old_count = self.dialogue_core.consecutive_message_count.get(user_id, 0)
+            self.dialogue_core.consecutive_message_count[user_id] = 0
+            
+            # 同时也重置last_initiative_types中的计数
+            if user_id in self.dialogue_core.last_initiative_types:
+                old_info = self.dialogue_core.last_initiative_types[user_id]
+                old_info["count"] = 0
+                self.dialogue_core.last_initiative_types[user_id] = old_info
+            
+            logger.info(f"用户 {user_id} 已回复消息，计数从 {old_count} 重置为 0")
+            
+            # 移除标记，表示已处理该回复
+            self.dialogue_core.users_received_initiative.discard(user_id)
+            
+            # 立即保存数据以确保计数重置被保存
+            if hasattr(self, 'data_loader'):
+                try:
+                    self.data_loader.save_data_to_storage()
+                    logger.info(f"用户 {user_id} 计数重置后数据已保存")
+                except Exception as save_error:
+                    logger.error(f"保存重置计数数据时出错: {str(save_error)}")
 
     async def terminate(self):
         """插件被卸载/停用时调用"""
         logger.info("正在停止主动对话插件...")
+
+        # 在终止前打印当前状态
+        for user_id, count in self.dialogue_core.consecutive_message_count.items():
+            logger.info(f"用户 {user_id} 的最终连续消息计数: {count}")
 
         # 保存当前数据
         self.data_loader.save_data_to_storage()
