@@ -3,6 +3,7 @@
 import json
 import random
 import logging
+import datetime
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from astrbot.api.all import (
     AstrBotMessage,
@@ -52,6 +53,23 @@ class MessageManager:
 
         """
         try:
+            # 检查消息间隔时间（如果是随机日常消息）
+            if message_type.endswith("日常分享"):
+                # 获取随机日常模块的配置
+                if hasattr(self.parent, 'random_daily'):
+                    last_time = self.parent.random_daily.last_sharing_time.get(user_id)
+                    now = datetime.datetime.now()
+                    
+                    if last_time:
+                        # 计算距离上次发送经过的分钟数
+                        minutes_since_last = (now - last_time).total_seconds() / 60
+                        min_interval = self.parent.random_daily.min_interval_minutes
+                        
+                        # 如果未达到最小间隔时间，取消发送
+                        if minutes_since_last < min_interval:
+                            logger.info(f"用户 {user_id} 上次消息发送于 {minutes_since_last:.1f} 分钟前，未达到最小间隔 {min_interval} 分钟，取消发送")
+                            return False
+            
             _, _, session_id = self.parse_unified_msg_origin(unified_msg_origin)
             # 获取对话对象
             conversation = await self.context.conversation_manager.get_conversation(
@@ -91,17 +109,21 @@ class MessageManager:
             # 随机选择一个提示词
             prompt = random.choice(prompts)
 
+            # 添加特殊标识，用于识别这是系统提示词而非用户消息
+            # 使用特殊标记 [SYS_PROMPT] 这种格式不会影响LLM，但可以被代码检测到
+            system_marker = "[SYS_PROMPT]"
+            
             # 调整提示词
-            adjusted_prompt = prompt
+            adjusted_prompt = f"{system_marker} {prompt}"
             if festival_name and message_type not in ["主动消息"]:
                 if time_period:
-                    adjusted_prompt = f"{prompt}，今天是{festival_name}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                    adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
                 else:
-                    adjusted_prompt = f"{prompt}，今天是{festival_name}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                    adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
             elif time_period:
-                adjusted_prompt = f"{prompt}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                adjusted_prompt = f"{system_marker} {prompt}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
             else:
-                adjusted_prompt = f"{prompt}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                adjusted_prompt = f"{system_marker} {prompt}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
 
             if extra_context:
                 adjusted_prompt = f"{adjusted_prompt} {extra_context}"
@@ -122,7 +144,11 @@ class MessageManager:
                 session_id=session_id,
             )
             platform.commit_event(fake_event)
-            self.parent.dialogue_core.users_received_initiative.add(user_id)
+            
+            # 仅在为主动消息类型时添加到标记集合中
+            if message_type == "主动消息":
+                self.parent.dialogue_core.users_received_initiative.add(user_id)
+                
             return fake_event.request_llm(
                 prompt=adjusted_prompt,
                 func_tool_manager=func_tools_mgr,
@@ -170,10 +196,16 @@ class MessageManager:
         from astrbot.core.platform.platform_metadata import PlatformMetadata
         from .aiocqhttp_message_event import AiocqhttpMessageEvent
 
+        # 使用配置中的self_id
+        self_id = self.parent.config.get("self_id", "")
+        if not self_id:
+            logger.warning("配置中未设置self_id，使用默认值，可能会导致异常")
+            self_id = sender_id
+
         abm = AstrBotMessage()
         abm.message_str = message_str
         abm.message = [Plain(message_str)]
-        abm.self_id = sender_id
+        abm.self_id = self_id  # 使用配置中的self_id
         abm.sender = MessageMember(user_id=sender_id)
 
         if "group" in umo.lower():

@@ -36,6 +36,7 @@ class DataLoader:
                 with open(self.data_file, "r", encoding="utf-8") as f:
                     stored_data = json.load(f)
 
+                    # 处理时间戳转换
                     if "user_records" in stored_data:
                         for user_id, record in stored_data["user_records"].items():
                             if "timestamp" in record and isinstance(
@@ -49,6 +50,7 @@ class DataLoader:
                                     )
                                 except ValueError:
                                     record["timestamp"] = datetime.datetime.now()
+                    
                     if "last_initiative_messages" in stored_data:
                         for user_id, record in stored_data[
                             "last_initiative_messages"
@@ -64,7 +66,17 @@ class DataLoader:
                                     )
                                 except ValueError:
                                     record["timestamp"] = datetime.datetime.now()
+                    
+                    # 处理类型记录中的时间戳
+                    if "last_initiative_types" in stored_data:
+                        for user_id, record in stored_data["last_initiative_types"].items():
+                            if "timestamp" in record and isinstance(record["timestamp"], str):
+                                try:
+                                    record["timestamp"] = datetime.datetime.fromisoformat(record["timestamp"])
+                                except ValueError:
+                                    record["timestamp"] = datetime.datetime.now()
 
+                    # 传递所有数据给对话核心
                     self.dialogue_core.set_data(
                         user_records=stored_data.get("user_records", {}),
                         last_initiative_messages=stored_data.get(
@@ -73,10 +85,14 @@ class DataLoader:
                         users_received_initiative=set(
                             stored_data.get("users_received_initiative", [])
                         ),
+                        consecutive_message_count=stored_data.get("consecutive_message_count", {}),
+                        last_initiative_types=stored_data.get("last_initiative_types", {})
                     )
             logger.info(f"成功从 {self.data_file} 加载用户数据")
         except Exception as e:
             logger.error(f"从存储加载数据时发生错误: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def save_data_to_storage(self) -> None:
         """将数据保存到本地存储"""
@@ -93,14 +109,23 @@ class DataLoader:
                 "users_received_initiative": list(
                     core_data.get("users_received_initiative", [])
                 ),
+                "consecutive_message_count": core_data.get("consecutive_message_count", {}),
+                "last_initiative_types": self._prepare_records_for_save(
+                    core_data.get("last_initiative_types", {})
+                ),
             }
 
+            # 确保数据目录存在
+            self.data_file.parent.mkdir(exist_ok=True)
+            
             with open(self.data_file, "w", encoding="utf-8") as f:
                 json.dump(data_to_save, f, ensure_ascii=False, indent=2)
 
             logger.info(f"数据已保存到 {self.data_file}")
         except Exception as e:
             logger.error(f"保存数据到存储时发生错误: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def _prepare_records_for_save(self, records: Dict[str, Any]) -> Dict[str, Any]:
         """准备记录以便保存，将datetime对象转换为ISO格式字符串"""
