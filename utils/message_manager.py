@@ -53,23 +53,24 @@ class MessageManager:
 
         """
         try:
-            # 检查消息间隔时间（如果是随机日常消息）
-            if message_type.endswith("日常分享"):
-                # 获取随机日常模块的配置
-                if hasattr(self.parent, 'random_daily'):
-                    last_time = self.parent.random_daily.last_sharing_time.get(user_id)
-                    now = datetime.datetime.now()
+            # 移除针对日常分享的冗余时间间隔检查
+            # # 检查消息间隔时间（如果是随机日常消息）
+            # if message_type.endswith("日常分享"):
+            #     # 获取随机日常模块的配置
+            #     if hasattr(self.parent, 'random_daily'):
+            #         last_time = self.parent.random_daily.last_sharing_time.get(user_id)
+            #         now = datetime.datetime.now()
                     
-                    if last_time:
-                        # 计算距离上次发送经过的分钟数
-                        minutes_since_last = (now - last_time).total_seconds() / 60
-                        min_interval = self.parent.random_daily.min_interval_minutes
+            #         if last_time:
+            #             # 计算距离上次发送经过的分钟数
+            #             minutes_since_last = (now - last_time).total_seconds() / 60
+            #             min_interval = self.parent.random_daily.min_interval_minutes
                         
-                        # 如果未达到最小间隔时间，取消发送
-                        if minutes_since_last < min_interval:
-                            logger.info(f"用户 {user_id} 上次消息发送于 {minutes_since_last:.1f} 分钟前，未达到最小间隔 {min_interval} 分钟，取消发送")
-                            return False
-            
+            #             # 如果未达到最小间隔时间，取消发送
+            #             if minutes_since_last < min_interval:
+            #                 logger.info(f"用户 {user_id} 上次消息发送于 {minutes_since_last:.1f} 分钟前，未达到最小间隔 {min_interval} 分钟，取消发送 (冗余检查)")
+            #                 return False # <--- 移除这部分逻辑
+
             _, _, session_id = self.parse_unified_msg_origin(unified_msg_origin)
             # 获取对话对象
             conversation = await self.context.conversation_manager.get_conversation(
@@ -115,18 +116,22 @@ class MessageManager:
             
             # 调整提示词
             adjusted_prompt = f"{system_marker} {prompt}"
+            context_requirement = "请确保回复贴合当前的对话上下文情景。" # 新增上下文要求
+
             if festival_name and message_type not in ["主动消息"]:
                 if time_period:
-                    adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                    adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。{context_requirement}"
                 else:
-                    adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                    adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。{context_requirement}"
             elif time_period:
-                adjusted_prompt = f"{system_marker} {prompt}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                adjusted_prompt = f"{system_marker} {prompt}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。{context_requirement}"
             else:
-                adjusted_prompt = f"{system_marker} {prompt}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。"
+                # 对非节日、非特定时间段的消息也添加上下文要求
+                adjusted_prompt = f"{system_marker} {prompt}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。{context_requirement}"
 
             if extra_context:
-                adjusted_prompt = f"{adjusted_prompt} {extra_context}"
+                # 将 extra_context 放在通用要求之前，确保其优先被考虑
+                adjusted_prompt = f"{adjusted_prompt.replace(context_requirement, '')} {extra_context} {context_requirement}"
 
             # 获取LLM工具管理器
             func_tools_mgr = self.context.get_llm_tool_manager()
