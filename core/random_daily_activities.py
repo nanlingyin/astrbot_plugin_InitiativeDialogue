@@ -32,9 +32,6 @@ class RandomDailyActivities:
         # 功能总开关 - 默认启用
         self.enabled = True
         
-        # 概率发送开关 - 从配置中读取，默认启用
-        self.probability_enabled = module_config.get("probability_enabled", True)
-
         # 日常分享配置
         sharing_config = module_config.get("daily_sharing", {})
         self.sharing_enabled = sharing_config.get("enabled", True)
@@ -44,44 +41,44 @@ class RandomDailyActivities:
         # 按时间段的日常分享提示词
         self.time_period_prompts = {
             "早上": [
-                "请向用户描述你早上刚起床时的一个日常行为或想法，内容要符合当前时间(早上6-8点)，保持符合你的人设特点",
-                "请向用户分享你早上看到的一个有趣事物或现象，内容要符合当前时间(早上6-8点)，保持符合你的人设特点",
-                "请向用户描述你早上的一个小计划或安排，内容要符合当前时间(早上6-8点)，保持符合你的人设特点",
+                "请向用户描述你早上刚起床时的一个日常行为或想法，内容要符合当前时间(早上6-8点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户分享你早上看到的一个有趣事物或现象，内容要符合当前时间(早上6-8点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户描述你早上的一个小计划或安排，内容要符合当前时间(早上6-8点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
             "上午": [
-                "请向用户分享你上午的学习或工作计划，内容要符合当前时间(上午8-11点)，保持符合你的人设特点",
-                "请向用户描述你上午喜欢的一个小习惯，内容要符合当前时间(上午8-11点)，保持符合你的人设特点",
-                "请向用户分享你上午看到的一个有趣现象或新闻，内容要符合当前时间(上午8-11点)，保持符合你的人设特点",
-                "请向用户谈谈你上午的心情或期待，内容要符合当前时间(上午8-11点)，保持符合你的人设特点",
+                "请向用户分享你上午的学习或工作计划，内容要符合当前时间(上午8-11点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户描述你上午喜欢的一个小习惯，内容要符合当前时间(上午8-11点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户分享你上午看到的一个有趣现象或新闻，内容要符合当前时间(上午8-11点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户谈谈你上午的心情或期待，内容要符合当前时间(上午8-11点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
             "午饭": [
-                "现在是午饭时间，请询问用户吃午饭了吗，可以稍微表达自己的饥饿感，保持符合你的人设特点",
-                "现在是午饭时间，请询问用户中午想吃什么，并分享一下你的午餐选择，保持符合你的人设特点",
-                "现在是午饭时间，请邀请用户一起吃午饭，可以提议一些美食选择，保持符合你的人设特点",
-                "现在是午饭时间，请向用户抱怨一下你还没吃午饭，肚子有点饿了，保持符合你的人设特点",
-                "现在是午饭时间，请询问用户是否需要你推荐一些午餐选择，保持符合你的人设特点",
+                "现在是午饭时间，请询问用户吃午饭了吗，可以稍微表达自己的饥饿感，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是午饭时间，请询问用户中午想吃什么，并分享一下你的午餐选择，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是午饭时间，请邀请用户一起吃午饭，可以提议一些美食选择，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是午饭时间，请向用户抱怨一下你还没吃午饭，肚子有点饿了，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是午饭时间，请询问用户是否需要你推荐一些午餐选择，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
             "下午": [
-                "请向用户描述你下午做的一个休闲活动，内容要符合当前时间(下午13-17点)，保持符合你的人设特点",
-                "请向用户分享你下午看到或遇到的一个小趣事，内容要符合当前时间(下午13-17点)，保持符合你的人设特点",
-                "请向用户描述你下午的一个小感悟或想法，内容要符合当前时间(下午13-17点)，保持符合你的人设特点",
+                "请向用户描述你下午做的一个休闲活动，内容要符合当前时间(下午13-17点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户分享你下午看到或遇到的一个小趣事，内容要符合当前时间(下午13-17点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户描述你下午的一个小感悟或想法，内容要符合当前时间(下午13-17点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
             "晚饭": [
-                "现在是晚饭时间，请询问用户晚餐打算吃什么，可以提一下你自己的想法，保持符合你的人设特点",
-                "现在是晚饭时间，请邀请用户一起享用晚餐，可以询问用户喜欢什么口味，保持符合你的人设特点",
-                "现在是晚饭时间，请和用户聊聊晚餐，分享你喜欢的一道晚餐菜品，保持符合你的人设特点",
-                "现在是晚饭时间，请提醒用户该吃晚饭了，可以询问用户是否已经吃过，保持符合你的人设特点",
-                "现在是晚饭时间，请询问用户晚餐有什么安排，可以表达一点期待感，保持符合你的人设特点",
+                "现在是晚饭时间，请询问用户晚餐打算吃什么，可以提一下你自己的想法，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是晚饭时间，请邀请用户一起享用晚餐，可以询问用户喜欢什么口味，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是晚饭时间，请和用户聊聊晚餐，分享你喜欢的一道晚餐菜品，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是晚饭时间，请提醒用户该吃晚饭了，可以询问用户是否已经吃过，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "现在是晚饭时间，请询问用户晚餐有什么安排，可以表达一点期待感，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
             "晚上": [
-                "请向用户描述你晚上的一个放松方式，内容要符合当前时间(晚上19-23点)，保持符合你的人设特点",
-                "请向用户分享你晚上看到的一个温馨或美好的场景，内容要符合当前时间(晚上19-23点)，保持符合你的人设特点",
-                "请向用户描述你晚上的一个小习惯或仪式感行为，内容要符合当前时间(晚上19-23点)，保持符合你的人设特点",
+                "请向用户描述你晚上的一个放松方式，内容要符合当前时间(晚上19-23点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户分享你晚上看到的一个温馨或美好的场景，内容要符合当前时间(晚上19-23点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户描述你晚上的一个小习惯或仪式感行为，内容要符合当前时间(晚上19-23点)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
             "深夜": [
-                "请向用户描述你深夜的一个安静时刻或思考，内容要符合当前时间(深夜23点后或6点前)，保持符合你的人设特点",
-                "请向用户分享你深夜喜欢做的一件小事，内容要符合当前时间(深夜23点后或6点前)，保持符合你的人设特点",
-                "请向用户描述你深夜的一个小心愿或期待，内容要符合当前时间(深夜23点后或6点前)，保持符合你的人设特点",
+                "请向用户描述你深夜的一个安静时刻或思考，内容要符合当前时间(深夜23点后或6点前)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户分享你深夜喜欢做的一件小事，内容要符合当前时间(深夜23点后或6点前)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
+                "请向用户描述你深夜的一个小心愿或期待，内容要符合当前时间(深夜23点后或6点前)，保持符合你的人设特点。请确保回复贴合当前的对话上下文情景。",
             ],
         }
 
@@ -100,9 +97,19 @@ class RandomDailyActivities:
         self.task_manager = TaskManager(parent)
 
         logger.info(
-            f"随机日常模块初始化完成，状态：{'启用' if self.enabled else '禁用'}, "
-            f"概率发送：{'启用' if self.probability_enabled else '禁用'}"
+            f"随机日常模块初始化完成，状态：{'启用' if self.enabled else '禁用'}"
         )
+
+    def get_data(self) -> Dict[str, Any]:
+        """获取需要持久化的数据"""
+        return {
+            "last_sharing_time": self.last_sharing_time
+        }
+
+    def set_data(self, data: Dict[str, Any]) -> None:
+        """从持久化存储恢复数据"""
+        self.last_sharing_time = data.get("last_sharing_time", {})
+        logger.info(f"已加载随机日常数据，共有 {len(self.last_sharing_time)} 条上次分享时间记录")
 
     async def start(self):
         """启动随机日常任务"""
@@ -149,6 +156,8 @@ class RandomDailyActivities:
             raise
         except Exception as e:
             logger.error(f"随机日常检查循环发生错误: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     async def _check_daily_sharing(self):
         """检查是否需要发送日常分享消息"""
@@ -196,7 +205,7 @@ class RandomDailyActivities:
             if not eligible_users:
                 return
 
-            # 遍历用户，根据配置决定是否使用概率发送
+            # 遍历用户，满足时间条件就发送消息
             for user_id, record in eligible_users:
                 # 再次检查时间间隔，确保在调度任务时不会有重复
                 last_time = self.last_sharing_time.get(user_id)
@@ -207,61 +216,33 @@ class RandomDailyActivities:
                         logger.debug(f"用户 {user_id} 上次消息发送于 {minutes_since_last:.1f} 分钟前，未达到最小间隔 {self.min_interval_minutes} 分钟，跳过")
                         continue
                 
-                send_message = True
+                # 直接发送消息，不再考虑概率
+                self.last_sharing_time[user_id] = now
                 
-                # 如果启用了概率发送，则根据时间间隔计算概率
-                if self.probability_enabled:
-                    # 计算发送概率 - 基于上次发送时间的间隔
-                    last_time = self.last_sharing_time.get(user_id)
-                    
-                    if last_time:
-                        minutes_since_last = (now - last_time).total_seconds() / 60
-                        # 线性增加概率，从最小间隔时的0%到最大间隔时的80%
-                        if minutes_since_last >= self.max_interval_minutes:
-                            probability = 0.8  # 80%概率
-                        else:
-                            # 线性插值计算概率
-                            ratio = (minutes_since_last - self.min_interval_minutes) / (
-                                self.max_interval_minutes - self.min_interval_minutes
-                            )
-                            probability = ratio * 0.8  # 最高80%概率
-                    else:
-                        # 首次分享，50%概率
-                        probability = 0.5
-                    
-                    # 根据概率决定是否发送
-                    import random
-                    send_message = random.random() <= probability
-                
-                # 更新最后分享时间 - 在决定发送之前就更新时间戳，防止同一循环中多次调度
-                if send_message:
-                    self.last_sharing_time[user_id] = now
-                    
-                    # 决定发送，为用户安排10分钟内随机时间发送消息
-                    prompts = self.time_period_prompts.get(time_period, [])
-                    if not prompts:
-                        continue
+                # 决定发送，为用户安排立即发送消息
+                prompts = self.time_period_prompts.get(time_period, [])
+                if not prompts:
+                    continue
 
-                    # 创建异步任务发送日常分享消息
-                    task_id = f"sharing_{user_id}_{int(now.timestamp())}"
+                # 创建异步任务发送日常分享消息
+                task_id = f"sharing_{user_id}_{int(now.timestamp())}"
 
-                    # 使用任务管理器调度任务
-                    await self.task_manager.schedule_task(
-                        task_id=task_id,
-                        coroutine_func=self._send_scheduled_message,
-                        random_delay=True,
-                        min_delay=1,
-                        max_delay=10,
-                        user_id=user_id,
-                        conversation_id=record["conversation_id"],
-                        unified_msg_origin=record["unified_msg_origin"],
-                        message_type=f"{time_period}日常分享",
-                        prompts=prompts,
-                        time_period=time_period,
-                    )
+                # 使用任务管理器调度任务，立即执行
+                await self.task_manager.schedule_task(
+                    task_id=task_id,
+                    coroutine_func=self._send_scheduled_message,
+                    user_id=user_id,
+                    conversation_id=record["conversation_id"],
+                    unified_msg_origin=record["unified_msg_origin"],
+                    message_type=f"{time_period}日常分享",
+                    prompts=prompts,
+                    time_period=time_period,
+                )
 
         except Exception as e:
             logger.error(f"检查日常分享任务时发生错误: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     async def _send_scheduled_message(
         self,
