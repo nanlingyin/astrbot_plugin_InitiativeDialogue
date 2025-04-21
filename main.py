@@ -77,7 +77,7 @@ class InitiativeDialogue(Star):
         logger.info(
             f"随机日常分享状态: {'启用' if self.random_daily.sharing_enabled else '禁用'}, "
             f"最小间隔: {self.random_daily.min_interval_minutes}分钟, "
-            f"最大间隔: {self.random_daily.max_interval_minutes}分钟"
+            f"最大延迟: {self.random_daily.sharing_max_delay_seconds}秒"
         )
         
         # 添加每日问候设置日志
