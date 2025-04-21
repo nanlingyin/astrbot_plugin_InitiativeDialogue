@@ -21,12 +21,6 @@
                 "hint": "用户多久不回复后会触发主动对话，默认7200秒(2小时)",
                 "default": 7200
             },
-            "max_response_delay_seconds": {
-                "description": "随机回复的最大延迟时间(秒)",
-                "type": "int",
-                "hint": "触发主动对话后，在多长时间内随机发送消息，默认3600秒(1小时)",
-                "default": 3600
-            },
             "activity_start_hour": {
                 "description": "活动开始时间(小时)",
                 "type": "int",
@@ -98,18 +92,6 @@
                 "type": "int",
                 "hint": "发送晚安问候的分钟，默认0分",
                 "default": 0
-            },
-            "morning_max_delay": {
-                "description": "早安消息最大随机延迟(分钟)",
-                "type": "int",
-                "hint": "早安消息发送的最大随机延迟时间(分钟)，防止同时发送，默认30分钟",
-                "default": 30
-            },
-            "night_max_delay": {
-                "description": "晚安消息最大随机延迟(分钟)",
-                "type": "int",
-                "hint": "晚安消息发送的最大随机延迟时间(分钟)，防止同时发送，默认30分钟",
-                "default": 30
             }
         }
     },
@@ -132,32 +114,8 @@
                         "type": "int",
                         "hint": "两次日常分享之间的最小间隔时间",
                         "default": 180
-                    },
-                    "max_interval_minutes": {
-                        "description": "最大发送间隔(分钟)",
-                        "type": "int",
-                        "hint": "两次日常分享之间的最大间隔时间",
-                        "default": 360
                     }
                 }
-            }
-        }
-    },
-    "festival_settings": {
-        "description": "节日检测与问候配置",
-        "type": "object",
-        "items": {
-            "enabled": {
-                "description": "是否启用节日检测功能",
-                "type": "bool",
-                "hint": "启用后会在特殊节日发送相关问候和提示",
-                "default": true
-            },
-            "prioritize_festival": {
-                "description": "是否优先使用节日提示词",
-                "type": "bool",
-                "hint": "启用后在节日当天会优先使用节日相关提示词",
-                "default": true
             }
         }
     }
