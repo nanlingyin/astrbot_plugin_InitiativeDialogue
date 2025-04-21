@@ -21,6 +21,12 @@
                 "hint": "用户多久不回复后会触发主动对话，默认7200秒(2小时)",
                 "default": 7200
             },
+            "max_response_delay_seconds": {
+                "description": "主动对话随机回复的最大延迟时间(秒)",
+                "type": "int",
+                "hint": "触发主动对话后，在多长时间内随机发送消息，默认3600秒(1小时)",
+                "default": 3600
+            },
             "activity_start_hour": {
                 "description": "活动开始时间(小时)",
                 "type": "int",
@@ -114,6 +120,12 @@
                         "type": "int",
                         "hint": "两次日常分享之间的最小间隔时间",
                         "default": 180
+                    },
+                    "sharing_max_delay_seconds": {
+                        "description": "日常分享消息最大随机延迟(秒)",
+                        "type": "int",
+                        "hint": "发送日常分享消息时的最大随机延迟时间(秒)，默认600秒(10分钟)",
+                        "default": 600
                     }
                 }
             }
