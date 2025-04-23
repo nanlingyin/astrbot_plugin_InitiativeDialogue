@@ -36,7 +36,7 @@ class RandomDailyActivities:
         sharing_config = module_config.get("daily_sharing", {})
         self.sharing_enabled = sharing_config.get("enabled", True)
         self.min_interval_minutes = sharing_config.get("min_interval_minutes", 180)
-        self.max_interval_minutes = sharing_config.get("max_interval_minutes", 360)
+        self.sharing_max_delay_seconds = sharing_config.get("sharing_max_delay_seconds", 600)
 
         # 按时间段的日常分享提示词
         self.time_period_prompts = {

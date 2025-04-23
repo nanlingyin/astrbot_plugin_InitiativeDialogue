@@ -22,7 +22,7 @@
                 "default": 7200
             },
             "max_response_delay_seconds": {
-                "description": "随机回复的最大延迟时间(秒)",
+                "description": "主动对话随机回复的最大延迟时间(秒)",
                 "type": "int",
                 "hint": "触发主动对话后，在多长时间内随机发送消息，默认3600秒(1小时)",
                 "default": 3600
@@ -98,18 +98,6 @@
                 "type": "int",
                 "hint": "发送晚安问候的分钟，默认0分",
                 "default": 0
-            },
-            "morning_max_delay": {
-                "description": "早安消息最大随机延迟(分钟)",
-                "type": "int",
-                "hint": "早安消息发送的最大随机延迟时间(分钟)，防止同时发送，默认30分钟",
-                "default": 30
-            },
-            "night_max_delay": {
-                "description": "晚安消息最大随机延迟(分钟)",
-                "type": "int",
-                "hint": "晚安消息发送的最大随机延迟时间(分钟)，防止同时发送，默认30分钟",
-                "default": 30
             }
         }
     },
@@ -133,11 +121,11 @@
                         "hint": "两次日常分享之间的最小间隔时间",
                         "default": 180
                     },
-                    "max_interval_minutes": {
-                        "description": "最大发送间隔(分钟)",
+                    "sharing_max_delay_seconds": {
+                        "description": "日常分享消息最大随机延迟(秒)",
                         "type": "int",
-                        "hint": "两次日常分享之间的最大间隔时间",
-                        "default": 360
+                        "hint": "发送日常分享消息时的最大随机延迟时间(秒)，默认600秒(10分钟)",
+                        "default": 600
                     }
                 }
             }
