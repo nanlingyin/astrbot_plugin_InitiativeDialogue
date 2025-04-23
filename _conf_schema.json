@@ -165,19 +165,19 @@
         "description": "工具API的密钥和配置",
         "type": "object",
         "items": {
-            "wheather_api_key": {
+            "weather_api_key": {
                 "description": "心知天气API的密钥",
                 "type": "string",
                 "hint": "请填写天气API的密钥中的私钥，用于获取天气信息",
                 "default": ""
             },
-            "wheather_location": {
+            "weather_location": {
                 "description": "天气API的位置信息",
                 "type": "string",
                 "hint": "请填写你所在的城市或地区，用于获取天气信息",
                 "default": "taiyuan"
             },
-            "wheather_get":{
+            "weather_get":{
                 "description": "是否开启天气获取功能",
                 "type": "bool",
                 "hint": "启用后可以通过指令获取天气信息",

@@ -46,9 +46,9 @@ class DailyGreetings:
 
         # 工具类参数及开关配置
         # 加载天气相关配置
-        self.weather_api_key = tools_module_config.get("wheather_api_key", None)
-        self.location = tools_module_config.get("wheather_location","beijing")
-        self.wheather_get = tools_module_config.get("wheather_get", False)
+        self.weather_api_key = tools_module_config.get("weather_api_key", None)
+        self.location = tools_module_config.get("weather_location","beijing")
+        self.weather_get = tools_module_config.get("weather_get", False)
 
         # 记录是否已经触发当天的早晚安任务
         self.morning_triggered = False
@@ -270,7 +270,7 @@ class DailyGreetings:
                 extra_context = f"今天是{festival_name}，请在晚安问候中加入节日祝福"
         
          # 检测是否需要添加天气提醒
-        if self.wheather_get == True:
+        if self.weather_get == True:
             if time_period =="早上" or time_period =="下午":
                 weather_onfo = await get_weather_info(self.weather_api_key, self.location)
                 weather_text = weather_onfo[0]
