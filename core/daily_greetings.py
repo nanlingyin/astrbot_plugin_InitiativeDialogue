@@ -10,7 +10,7 @@ from ..utils.message_manager import MessageManager
 from ..utils.user_manager import UserManager
 from ..utils.task_manager import TaskManager
 from ..utils.config_manager import ConfigManager
-
+from ..utils.get_weather import get_weather_info
 # 配置日志
 logger = logging.getLogger("daily_greetings")
 
@@ -29,6 +29,7 @@ class DailyGreetings:
         # 加载配置
         self.config_manager = ConfigManager(parent.config)
         module_config = self.config_manager.get_module_config("daily_greetings")
+        tools_module_config = self.config_manager.get_module_config("tools_api_keySettings")
 
         # 功能总开关
         self.enabled = module_config.get("enabled", False)
@@ -42,6 +43,12 @@ class DailyGreetings:
         self.night_hour = module_config.get("night_hour", 23)
         self.night_minute = module_config.get("night_minute", 0)
         self.night_max_delay = module_config.get("night_max_delay", 30)
+
+        # 工具类参数及开关配置
+        # 加载天气相关配置
+        self.weather_api_key = tools_module_config.get("weather_api_key", None)
+        self.location = tools_module_config.get("weather_location","beijing")
+        self.weather_get = tools_module_config.get("weather_get", False)
 
         # 记录是否已经触发当天的早晚安任务
         self.morning_triggered = False
@@ -245,7 +252,8 @@ class DailyGreetings:
             time_period = "晚上"
         else:
             time_period = "深夜"
-            
+        
+
         # 检查今天是否是特殊节日
         festival_detector = self.parent.festival_detector if hasattr(self.parent, 'festival_detector') else None
         festival_name = None
@@ -260,6 +268,16 @@ class DailyGreetings:
                 extra_context = f"今天是{festival_name}，请在早安问候中加入节日祝福"
             elif greeting_type == "晚安":
                 extra_context = f"今天是{festival_name}，请在晚安问候中加入节日祝福"
+        
+         # 检测是否需要添加天气提醒
+        if self.weather_get == True:
+            if time_period =="早上" or time_period =="下午":
+                weather_onfo = await get_weather_info(self.weather_api_key, self.location)
+                weather_text = weather_onfo[0]
+                temperature = weather_onfo[1]
+                location_path = weather_onfo[2]
+                extra_context = extra_context + f"位置{location_path}现在的天气是{weather_text}，温度是{temperature}°C"
+
 
         # 使用消息管理器发送消息
         await self.message_manager.generate_and_send_message(
