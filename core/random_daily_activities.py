@@ -37,6 +37,12 @@ class RandomDailyActivities:
         self.sharing_enabled = sharing_config.get("enabled", True)
         self.min_interval_minutes = sharing_config.get("min_interval_minutes", 180)
         self.sharing_max_delay_seconds = sharing_config.get("sharing_max_delay_seconds", 600)
+        
+        # 从time_settings获取时间限制配置，与主动对话模块保持一致
+        time_settings = self.config_manager.get_module_config("time_settings")
+        self.time_limit_enabled = time_settings.get("time_limit_enabled", True)
+        self.activity_start_hour = time_settings.get("activity_start_hour", 8)
+        self.activity_end_hour = time_settings.get("activity_end_hour", 23)
 
         # 按时间段的日常分享提示词
         self.time_period_prompts = {
@@ -89,7 +95,9 @@ class RandomDailyActivities:
         self.task_manager = TaskManager(parent)
 
         logger.info(
-            f"随机日常模块初始化完成，状态：{'启用' if self.enabled else '禁用'}"
+            f"随机日常模块初始化完成，状态：{'启用' if self.enabled else '禁用'}, " +
+            f"时间限制: {'启用' if self.time_limit_enabled else '禁用'} " +
+            f"({self.activity_start_hour}:00-{self.activity_end_hour}:00)"
         )
 
     def get_data(self) -> Dict[str, Any]:
@@ -155,6 +163,13 @@ class RandomDailyActivities:
         """检查是否需要发送日常分享消息"""
         try:
             now = datetime.datetime.now()
+            
+            # 检查是否在允许的活动时间范围内
+            if self.time_limit_enabled:
+                current_hour = now.hour
+                if not (self.activity_start_hour <= current_hour < self.activity_end_hour):
+                    logger.debug(f"当前时间 {current_hour}:00 不在活动时间范围内 ({self.activity_start_hour}:00-{self.activity_end_hour}:00)，跳过日常分享")
+                    return
 
             # 获取当前时间段名称 - 更新时间段定义
             current_hour = now.hour
@@ -172,6 +187,11 @@ class RandomDailyActivities:
                 time_period = "晚上"
             else:
                 time_period = "深夜"
+
+            # 检查是否有这个时间段的提示词
+            prompts = self.time_period_prompts.get(time_period, [])
+            if not prompts:
+                return
 
             # 遍历每个用户，检查是否符合条件
             # 获取所有符合条件的用户
