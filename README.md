@@ -12,7 +12,8 @@
 主动对话插件2.0版本现已正式推出，支持更丰富的功能，让你的bot更加拟人
 
 感谢[anka-afk](https://github.com/anka-afk)对2.0版本更新做出的大力支持
-感谢[喵喵](https://github.com/miaoxutao123)对2.0版本更新做出的大力支持
+
+感谢[喵喵](https://github.com/miaoxutao123)添加的天气系统
 
 # 插件介绍
  
