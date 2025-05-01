@@ -427,6 +427,4 @@ class InitiativeDialogueCore:
             "unified_msg_origin": unified_msg_origin,
         }
 
-        # 用户回复了，连续消息计数处理移至主模块的on_private_message方法中
-        # 记录日志（仅在调试模式下）
         logger.debug(f"已更新用户 {user_id} 的活跃状态，最后活跃时间：{now}")

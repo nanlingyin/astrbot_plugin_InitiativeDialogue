@@ -103,7 +103,7 @@ class MessageManager:
                 festival_name = festival_detector.get_festival_name()
             
             # 如果今天是节日且不是特定消息类型，优先使用节日相关提示词
-            if festival_prompts and message_type not in ["主动消息", "早安", "晚安"]:
+            if festival_prompts and message_type not in ["主动消息", "早安", "晚安", "日程安排"]:
                 prompts = festival_prompts
                 logger.info(f"今天是{festival_name}，使用节日相关提示词")
 
@@ -118,7 +118,20 @@ class MessageManager:
             adjusted_prompt = f"{system_marker} {prompt}"
             context_requirement = "请确保回复贴合当前的对话上下文情景。" # 新增上下文要求
 
-            if festival_name and message_type not in ["主动消息"]:
+            # 获取当前时间段的AI日程安排（如果有）
+            ai_schedule = None
+            if hasattr(self.parent, 'ai_schedule') and time_period and message_type != "日程安排":
+                ai_schedule = self.parent.ai_schedule.get_schedule_by_time_period(time_period)
+            
+            # 将AI日程安排融入提示中
+            if ai_schedule:
+                # 如果有额外的上下文，将日程安排添加到额外上下文之前
+                if extra_context:
+                    extra_context = f"根据你今天的日程安排，{time_period}你计划{ai_schedule}。{extra_context}"
+                else:
+                    extra_context = f"根据你今天的日程安排，{time_period}你计划{ai_schedule}。请在对话中自然地融入这个安排，但不要直接告诉用户这是你的日程安排。"
+
+            if festival_name and message_type not in ["主动消息", "日程安排"]:
                 if time_period:
                     adjusted_prompt = f"{system_marker} {prompt}，今天是{festival_name}，现在是{time_period}，请保持与你的人格设定一致的风格，确保回复符合你的人设特点。{context_requirement}"
                 else:

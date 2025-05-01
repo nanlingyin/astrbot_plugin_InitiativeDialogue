@@ -6,9 +6,11 @@ from astrbot.api import AstrBotConfig, logger
 import asyncio
 import os
 import pathlib
+import datetime
 from .core.daily_greetings import DailyGreetings
 from .core.initiative_dialogue_core import InitiativeDialogueCore
 from .core.random_daily_activities import RandomDailyActivities
+from .core.ai_daily_schedule import AIDailySchedule
 from .utils.data_loader import DataLoader
 from .utils.festival_detector import FestivalDetector
 
@@ -53,6 +55,9 @@ class InitiativeDialogue(Star):
 
         # 初始化随机日常模块
         self.random_daily = RandomDailyActivities(self)
+        
+        # 初始化AI日程安排模块
+        self.ai_schedule = AIDailySchedule(self)
 
         # 初始化数据加载器并加载数据
         self.data_loader = DataLoader.get_instance(self)
@@ -87,6 +92,13 @@ class InitiativeDialogue(Star):
             f"晚安时间: {self.daily_greetings.night_hour}:{self.daily_greetings.night_minute:02d}"
         )
         
+        # 添加AI日程安排设置日志
+        schedule_settings = self.config.get("schedule_settings", {})
+        logger.info(
+            f"AI日程安排状态: {'启用' if self.ai_schedule.enabled else '禁用'}, "
+            f"生成时间: {self.ai_schedule.schedule_generation_hour}:{self.ai_schedule.schedule_generation_minute:02d}"
+        )
+        
         # 添加节日检测信息
         festival_config = self.config.get('festival_settings', {})
         festival_enabled = festival_config.get('enabled', True)
@@ -106,6 +118,9 @@ class InitiativeDialogue(Star):
 
         # 启动随机日常任务
         asyncio.create_task(self.random_daily.start())
+        
+        # 启动AI日程安排任务
+        asyncio.create_task(self.ai_schedule.start())
 
         logger.info("主动对话插件初始化完成，检测任务已启动")
 
@@ -173,6 +188,9 @@ class InitiativeDialogue(Star):
 
         # 停止随机日常任务
         await self.random_daily.stop()
+        
+        # 停止AI日程安排任务
+        await self.ai_schedule.stop()
 
     @filter.command("initiative_test_message")
     async def test_initiative_message(self, event: AstrMessageEvent):
@@ -197,9 +215,23 @@ class InitiativeDialogue(Star):
             conversation_id=conversation_id,
             unified_msg_origin=unified_msg_origin,
             prompts=prompts,
-            message_type="早上",
+            message_type="测试",
             time_period=time_period,
         )
+    
+    @filter.command("generate_schedule")
+    async def generate_ai_schedule(self, event: AstrMessageEvent):
+        """手动生成AI日程安排（仅管理员）"""
+        if not event.is_admin():
+            yield event.plain_result("只有管理员可以使用此命令")
+            return
+            
+        yield event.plain_result("正在为所有用户生成AI日程安排...")
+        
+        # 手动触发日程生成
+        await self.ai_schedule.generate_daily_schedules_for_all_users()
+        
+        yield event.plain_result("AI日程安排生成完成")
 
     @filter.command("check_festival")
     async def check_current_festival(self, event: AstrMessageEvent):
@@ -216,3 +248,27 @@ class InitiativeDialogue(Star):
             yield event.plain_result(result)
         else:
             yield event.plain_result("今天不是特殊节日")
+            
+    @filter.command("check_schedule")
+    async def check_ai_schedule(self, event: AstrMessageEvent):
+        """查看当前AI日程安排（仅管理员）"""
+        if not event.is_admin():
+            yield event.plain_result("只有管理员可以使用此命令")
+            return
+            
+        today_str = datetime.datetime.now().date().isoformat()
+        
+        # 检查是否有今日日程安排
+        if today_str in self.ai_schedule.schedules:
+            schedule = self.ai_schedule.schedules[today_str]
+            result = f"今日AI日程安排：\n"
+            result += f"早上(6-8点): {schedule.get('morning', '无安排')}\n"
+            result += f"上午(8-11点): {schedule.get('forenoon', '无安排')}\n"
+            result += f"午饭(11-13点): {schedule.get('lunch', '无安排')}\n"
+            result += f"下午(13-17点): {schedule.get('afternoon', '无安排')}\n"
+            result += f"晚饭(17-19点): {schedule.get('dinner', '无安排')}\n"
+            result += f"晚上(19-23点): {schedule.get('evening', '无安排')}\n"
+            result += f"深夜(23-6点): {schedule.get('night', '无安排')}\n"
+            yield event.plain_result(result)
+        else:
+            yield event.plain_result("当前没有AI日程安排，请使用 generate_schedule 命令生成")

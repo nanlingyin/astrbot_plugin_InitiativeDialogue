@@ -105,6 +105,10 @@ class DataLoader:
                     if hasattr(self.plugin, 'random_daily') and "random_daily_data" in stored_data:
                         self.plugin.random_daily.set_data(stored_data["random_daily_data"])
                         
+                    # 传递数据给AI日程安排模块
+                    if hasattr(self.plugin, 'ai_schedule') and "ai_schedule_data" in stored_data:
+                        self.plugin.ai_schedule.set_data(stored_data["ai_schedule_data"])
+                        
             logger.info(f"成功从 {self.data_file} 加载用户数据")
         except Exception as e:
             logger.error(f"从存储加载数据时发生错误: {str(e)}")
@@ -120,6 +124,11 @@ class DataLoader:
             random_daily_data = {}
             if hasattr(self.plugin, 'random_daily'):
                 random_daily_data = self.plugin.random_daily.get_data()
+                
+            # 获取AI日程安排模块的数据
+            ai_schedule_data = {}
+            if hasattr(self.plugin, 'ai_schedule'):
+                ai_schedule_data = self.plugin.ai_schedule.get_data()
 
             data_to_save = {
                 "user_records": self._prepare_records_for_save(
@@ -135,7 +144,8 @@ class DataLoader:
                 "last_initiative_types": self._prepare_records_for_save(
                     core_data.get("last_initiative_types", {})
                 ),
-                "random_daily_data": self._prepare_records_for_save(random_daily_data) # 保存随机日常数据
+                "random_daily_data": self._prepare_records_for_save(random_daily_data), # 保存随机日常数据
+                "ai_schedule_data": self._prepare_records_for_save(ai_schedule_data)  # 保存AI日程安排数据
             }
 
             # 确保数据目录存在
@@ -165,6 +175,8 @@ class DataLoader:
                 prepared_records[key] = self._prepare_records_for_save(value)
             # 如果值是 datetime 对象，转换为 ISO 格式字符串
             elif isinstance(value, datetime.datetime):
+                prepared_records[key] = value.isoformat()
+            elif isinstance(value, datetime.date):
                 prepared_records[key] = value.isoformat()
             # 其他类型的值直接复制
             else:

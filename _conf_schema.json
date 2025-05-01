@@ -101,6 +101,36 @@
             }
         }
     },
+    "schedule_settings": {
+        "description": "AI日程安排设置",
+        "type": "object",
+        "items": {
+            "enabled": {
+                "description": "是否启用AI日程安排",
+                "type": "bool",
+                "hint": "启用后AI会自动生成每日日程安排",
+                "default": true
+            },
+            "generation_hour": {
+                "description": "日程生成时间(小时)",
+                "type": "int",
+                "hint": "每天几点生成新的日程安排，24小时制，默认0点",
+                "default": 0
+            },
+            "generation_minute": {
+                "description": "日程生成时间(分钟)",
+                "type": "int",
+                "hint": "生成日程的分钟数，默认5分钟",
+                "default": 5
+            },
+            "persona_name": {
+                "description": "日程生成使用的人格名称",
+                "type": "string",
+                "hint": "用于生成日程的人格名称，留空则使用默认人格",
+                "default": ""
+            }
+        }
+    },
     "random_daily_activities": {
         "description": "随机日常活动配置",
         "type": "object",
@@ -165,7 +195,7 @@
                 "hint": "请填写你所在的城市或地区，用于获取天气信息",
                 "default": "taiyuan"
             },
-            "weather_get":{
+            "weather_get": {
                 "description": "是否开启天气获取功能",
                 "type": "bool",
                 "hint": "启用后可以通过指令获取天气信息",
