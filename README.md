@@ -1,3 +1,4 @@
+修改了原项目中/utils/message_manager.py的部分逻辑，使bot在主动发起对话的时候可以在原有的会话id基础上回复消息，不会再生成一个id为None的会话
 
 </div>
 
