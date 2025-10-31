@@ -71,7 +71,13 @@ class MessageManager:
             #                 logger.info(f"用户 {user_id} 上次消息发送于 {minutes_since_last:.1f} 分钟前，未达到最小间隔 {min_interval} 分钟，取消发送 (冗余检查)")
             #                 return False # <--- 移除这部分逻辑
 
-            _, _, session_id = self.parse_unified_msg_origin(unified_msg_origin)
+            # 解析 unified_msg_origin 获取平台信息
+            platform_id, msg_type, session_id = self.parse_unified_msg_origin(unified_msg_origin)
+            
+            if not platform_id:
+                logger.error(f"无法解析平台ID: {unified_msg_origin}")
+                return False
+            
             # 获取对话对象
             conversation = await self.context.conversation_manager.get_conversation(
                 unified_msg_origin, conversation_id
@@ -153,13 +159,27 @@ class MessageManager:
             logger.info(f"正在为用户 {user_id} 生成{message_type}消息内容...")
             logger.debug(f"使用的提示词: {adjusted_prompt}")
 
-            platform = self.context.get_platform("aiocqhttp")
+            # 【修改】使用 get_platform_inst 获取正确的平台实例
+            platform = self.context.get_platform_inst(platform_id)
+            
+            if not platform:
+                logger.error(f"无法获取平台实例: {platform_id}")
+                return False
+            
+            # 获取 bot 实例
+            bot = getattr(platform, 'bot', None)
+            if not bot:
+                logger.error(f"平台 {platform_id} 没有 bot 属性")
+                return False
+            
+            # 【修改】传递真实的平台元数据
             fake_event = self.create_fake_event(
                 message_str=adjusted_prompt,
-                bot=platform.bot,
+                bot=bot,
                 umo=unified_msg_origin,
                 sender_id=user_id,
                 session_id=session_id,
+                platform_meta=platform.meta(),  # 传递真实的平台元数据
             )
             platform.commit_event(fake_event)
             
@@ -210,9 +230,21 @@ class MessageManager:
         umo: str,
         session_id: str,
         sender_id: str = "123456",
+        platform_meta=None,  # 【新增】接收平台元数据参数
     ):
         from astrbot.core.platform.platform_metadata import PlatformMetadata
         from .aiocqhttp_message_event import AiocqhttpMessageEvent
+
+        # 【修改】如果没有传入平台元数据，尝试从 umo 解析
+        if not platform_meta:
+            platform_name, _, _ = self.parse_unified_msg_origin(umo)
+            if not platform_name:
+                logger.warning(f"无法解析平台名称，使用默认值 'aiocqhttp'")
+                platform_name = "aiocqhttp"
+            platform_meta = PlatformMetadata(platform_name, "fake_adapter")
+            logger.info(f"从 UMO 解析平台名称: {platform_name}")
+        else:
+            logger.info(f"使用传入的平台元数据: {platform_meta.id}")
 
         # 使用配置中的self_id
         self_id = self.parent.config.get("self_id", "")
@@ -246,11 +278,11 @@ class MessageManager:
         abm.session_id = session_id
         abm.type = MessageType.FRIEND_MESSAGE
 
-        meta = PlatformMetadata("aiocqhttp", "fake_adapter")
+        # 【修改】使用真实的平台元数据，而不是硬编码
         event = AiocqhttpMessageEvent(
             message_str=message_str,
             message_obj=abm,
-            platform_meta=meta,
+            platform_meta=platform_meta,  # 使用真实的平台元数据
             session_id=session_id,
             bot=bot,
         )
